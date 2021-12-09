@@ -1,0 +1,2 @@
+# ols-autoinstall-almalinux
+Tes
