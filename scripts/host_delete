@@ -1,0 +1,223 @@
+#!/bin/bash
+#############################################################################################
+#                  OpenLiteSpeed Web Server Auto Installer for AlmaLinux 8                  #
+#                                                                                           #
+#                                     Author : OKFSoft                                      #
+#                             Website: https://www.okflash.net                              #
+#                           GitHub : https://github.com/okfsoft                             #
+#             OpenLiteSpeed-Auto-Install-AlmaLinux-8, Copyright ©2021 OKFSoft               #
+#                                Licensed under MIT License                                 #
+#                                                                                           #
+#                          Please do not remove copyright. Thank!                           #
+#############################################################################################
+#                                                                                           #
+# MIT License                                                                               #
+# -----------                                                                               #
+#                                                                                           #
+# Copyright (c) 2021 OKFSoft (https://www.okflash.net)                                      #
+#                                                                                           #
+# Permission is hereby granted, free of charge, to any person                               #
+# obtaining a copy of this software and associated documentation                            #
+# files (the "Software"), to deal in the Software without                                   #
+# restriction, including without limitation the rights to use,                              #
+# copy, modify, merge, publish, distribute, sublicense, and/or sell                         #
+# copies of the Software, and to permit persons to whom the                                 #
+# Software is furnished to do so, subject to the following                                  #
+# conditions:                                                                               #
+#                                                                                           #
+# The above copyright notice and this permission notice shall be                            #
+# included in all copies or substantial portions of the Software.                           #
+#                                                                                           #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,                           #
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES                           #
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND                                  #
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT                               #
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,                              #
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING                              #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR                             #
+# OTHER DEALINGS IN THE SOFTWARE.                                                           #
+#############################################################################################
+
+#CONFIGURATION
+############################################################################################
+NC='\e[0m'
+CL_GREEN='\033[1;92m'
+CL_RED='\033[1;91m'
+CL_ELLOW='\033[1;93m'
+CL_BLUE='\033[1;94m'
+CL_BLACK='\033[0;30m'
+BG_RED='\e[0;41m'
+BG_YELLOW='\e[0;43m'
+BG_GREEEN='\e[0;42m'
+TICK="[${CL_GREEN}✅${NC}]"
+CROSS="[${CL_RED}❎${NC}]"
+WARNING="[${CL_ELLOW}🔺${NC}]"
+INFO=" [${CL_GREEN}➕${NC}]"
+DONE="[${CL_GREEN}🔵${NC}]"
+CHECK="${CL_GREEN}\u2714 ${NC}"
+LINE="[✳]"
+SET=" [${CL_GREEN}➕${NC}] $(date +%d-%m-%Y) $(date +%T) : "
+SOK=" [${CL_GREEN}\u2714 ${NC}] $(date +%d-%m-%Y) $(date +%T) : "
+
+#CONFIGURATION
+############################################################################################
+vOLS_ROOT=/usr/local/lsws
+vWEB_ROOT=/home
+vSUCC_FILE=0
+
+#VARIABLES
+############################################################################################
+cConf_Path=/var/okfsoft-cfg/hostname
+
+############################################################################################
+
+#GLOBAL FUNCTIONS
+############################################################################################
+
+function sed_escape() {
+  sed -e 's/[]\/$*.^[]/\\&/g'
+}
+function GF_Cfg_Write() {
+  GF_Cfg_Delete "$1"
+  echo "$1=$2" >>"$cConf_Path"
+}
+function GF_Cfg_Read() {
+  test -f "$cConf_Path" && grep "^$(echo "$1" | sed_escape)=" "$cConf_Path" | sed "s/^$(echo "$1" | sed_escape)=//" | tail -1
+}
+function GF_Cfg_Delete() {
+  test -f "$cConf_Path" && sed -i "/^$(echo "$1" | sed_escape).*$/d" "$cConf_Path"
+}
+function GF_Cfg_HasKey() {
+  test -f "$cConf_Path" && grep "^$(echo "$1" | sed_escape)=" "$cConf_Path" >/dev/null
+}
+
+# Checking directory status
+function GF_Directory_Check() {
+  if ! [ -d "$1" ]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+# Checking directory status
+function GF_Files_Check() {
+  if ! [ -f "$1" ]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+# Stop the process script
+# shellcheck disable=SC2120
+function GF_Exit_Process() {
+  if [ "x$1" == "x" ]; then
+    local msg="no process executed."
+  else
+    local msg="$1"
+  fi
+  clear
+  stty echo
+  echo
+  echo -e " ${CROSS} ${CL_RED}Action aborted, $msg${NC}"
+  echo
+  exit 1
+}
+
+# Please do not remove copyright. Thank!
+function start_ascii_okf() {
+stty echo
+clear
+echo -e "${CL_GREEN}
+ OOOOOOOOOOO   KKK   KKK  FFFFFFFF  LLL             AAAAA        SSSSSSSSSSS  HHH     HHH
+OOO       OOO  KKK  KKK   FFFFFFFF  LLL            AAA AAA       SSSSSSSSSSS  HHH     HHH
+OOO       OOO  KKK KKK    FFF       LLL           AAA   AAA      SSS          HHH     HHH
+OOO       OOO  KKKKK      FFFFFFFF  LLL          AAA     AAA     SSSSSSSSSSS  HHHHHHHHHHH${CL_RED}
+OOO       OOO  KKKKK      FFFFFFFF  LLL         AAAAAAAAAAAAA    SSSSSSSSSSS  HHHHHHHHHHH
+OOO       OOO  KKK KKK    FFF       LLL        AAAAAAAAAAAAAAA           SSS  HHH     HHH
+OOO       OOO  KKK  KKK   FFF       LLLLLLLL  AAA           AAA  SSSSSSSSSSS  HHH     HHH
+ OOOOOOOOOOO   KKK   KKK  FFF       LLLLLLLL AAA             AAA SSSSSSSSSSS  HHH     HHH${NC}"
+echo
+echo -e " ::: ================================================================================ :::${CL_GREEN}"
+echo -e " :::    Script Tool To Delete OpenLiteSpeed Virtual Host - https://www.okflash.net    :::${NC}"
+echo -e " :::                                 Version : 1.0.0                                  :::"
+echo -e " :::                          Copyright (c) 2021 - OKFSoft                            :::"
+echo -e " :::                           Licensed under MIT License                             :::"
+echo -e " ::: ================================================================================ :::"
+echo -e " ::: Script Tool To Delete Virtual Host                                               :::"
+echo -e " ::: ================================================================================ :::"
+echo
+echo -e " ::: ================================================================================ :::"
+echo
+}
+
+start_ascii_okf
+
+# Define and Check the domain host
+while [ $vSUCC_FILE -eq "0" ]; do
+  read -e -p " [++] Domain host to delete (Without www) : " DEL_DOMAIN
+  DOMAIN=$(sed -E -e 's_.*://([^/@]*@)?([^/:]+).*_\2_; s/www.//g; s/ //g' <<<"${DEL_DOMAIN,,}")
+  echo ""
+  if ! GF_Directory_Check "$vOLS_ROOT/conf/vhosts/$DOMAIN"; then
+    start_ascii_okf
+    echo
+    echo -e " ${CROSS} Error, Domain host ($DOMAIN) not found, specify domain host correctly.${COL_NC}"
+    echo
+  else
+    start_ascii_okf
+    vSUCC_FILE=1
+    echo
+  fi
+done
+
+# Checking virtual host configuration
+if GF_Files_Check "/var/okfsoft-cfg/hostname/vh_$DOMAIN.conf"; then
+  cConf_Path="/var/okfsoft-cfg/hostname/vh_$DOMAIN.conf"
+  if [ $(GF_Cfg_Read CFG_FTP) -eq "1" ]; then
+    ftp_status="yes"
+  else
+    ftp_status="no"
+  fi
+  USER_FTP=$(GF_Cfg_Read CFG_USER_FTP)
+  HOME_DIR=$(GF_Cfg_Read CFG_WEB_DIR)
+  VHOSTS_DIR=$(GF_Cfg_Read CFG_VHOSTS_DIR)
+  CERT_DIR=$(GF_Cfg_Read CFG_CERT_DIR)
+  echo -e " ${TICK} ${CL_GREEN}Domain host records found, below is a list of records associated with, host domain: $DOMAIN.${NC}"
+	echo
+	echo -e "${CL_GREEN} ::: ================================================================================ :::${NC}"
+	echo -e " ${TICK} Data found :"
+	echo -e "      ${DONE} Host domain                    : $DOMAIN"
+	echo -e "      ${DONE} FTP Status                     : $ftp_status"
+	echo -e "      ${DONE} FTP User                       : $USER_FTP"
+	echo -e "      ${DONE} Virtual Host directory         : $HOME_DIR"
+	echo -e "${CL_GREEN} ::: ================================================================================ :::${NC}"
+	echo
+	read -e -p " [++] Are you sure you want to delete the virtual host and ftp user, to continue press [y/Y] : " START_DEL
+	echo
+	# Getting started to delete virtual hosts
+	if [[ $START_DEL =~ [yY](es)* ]]; then
+	  # Remove ftp user if found in configuration
+    if [ $(GF_Cfg_Read CFG_FTP) -eq "1" ]; then
+      userdel -f -r "$USER_FTP"
+	    systemctl restart proftpd
+    fi
+    # Deleting folders and files related to virtual host
+	  rm -rf "$HOME_DIR"
+	  rm -rf "$VHOSTS_DIR"
+	  rm -rf "$CERT_DIR"
+	  rm -rf "$cConf_Path"
+	  rm -rf /root/scripts/v-host/detail-vhost-"$DOMAIN".txt
+	  # Restarting OpenLiteSpeed
+	  systemctl restart lshttpd
+	  echo -e " ${TICK} ${CL_GREEN}Domain host address and ftp user deleted successfully.${NC}"
+	  echo -e " ${TICK} ${CL_GREEN}For Complete process, please enter your litespeed admin, and delete your vhost ($DOMAIN).${NC}"
+		echo
+	else
+	  # Process aborted by user
+	  GF_Exit_Process "You cancel the action, the ftp host and user are not deleted."
+	fi
+else
+  # Process aborted configuration file not found
+  GF_Exit_Process "sorry configuration file not found, script cannot retrieve detailed information. Maybe you create a virtual host not using a script."
+fi

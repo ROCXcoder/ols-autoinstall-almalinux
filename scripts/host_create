@@ -1,0 +1,442 @@
+#!/bin/bash
+#############################################################################################
+#                  OpenLiteSpeed Web Server Auto Installer for AlmaLinux 8                  #
+#                                                                                           #
+#                                     Author : OKFSoft                                      #
+#                             Website: https://www.okflash.net                              #
+#                           GitHub : https://github.com/okfsoft                             #
+#             OpenLiteSpeed-Auto-Install-AlmaLinux-8, Copyright ©2021 OKFSoft               #
+#                                Licensed under MIT License                                 #
+#                                                                                           #
+#                          Please do not remove copyright. Thank!                           #
+#############################################################################################
+#                                                                                           #
+# MIT License                                                                               #
+# -----------                                                                               #
+#                                                                                           #
+# Copyright (c) 2021 OKFSoft (https://www.okflash.net)                                      #
+#                                                                                           #
+# Permission is hereby granted, free of charge, to any person                               #
+# obtaining a copy of this software and associated documentation                            #
+# files (the "Software"), to deal in the Software without                                   #
+# restriction, including without limitation the rights to use,                              #
+# copy, modify, merge, publish, distribute, sublicense, and/or sell                         #
+# copies of the Software, and to permit persons to whom the                                 #
+# Software is furnished to do so, subject to the following                                  #
+# conditions:                                                                               #
+#                                                                                           #
+# The above copyright notice and this permission notice shall be                            #
+# included in all copies or substantial portions of the Software.                           #
+#                                                                                           #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,                           #
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES                           #
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND                                  #
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT                               #
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,                              #
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING                              #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR                             #
+# OTHER DEALINGS IN THE SOFTWARE.                                                           #
+#############################################################################################
+
+#CONFIGURATION
+############################################################################################
+NC='\e[0m'
+CL_GREEN='\033[1;92m'
+CL_RED='\033[1;91m'
+CL_ELLOW='\033[1;93m'
+CL_BLUE='\033[1;94m'
+CL_BLACK='\033[0;30m'
+BG_RED='\e[0;41m'
+BG_YELLOW='\e[0;43m'
+BG_GREEEN='\e[0;42m'
+TICK="[${CL_GREEN}✅${NC}]"
+CROSS="[${CL_RED}❎${NC}]"
+WARNING="[${CL_ELLOW}🔺${NC}]"
+INFO=" [${CL_GREEN}➕${NC}]"
+DONE="[${CL_GREEN}🔵${NC}]"
+CHECK="${CL_GREEN}\u2714 ${NC}"
+LINE="[✳]"
+SET=" [${CL_GREEN}➕${NC}] $(date +%d-%m-%Y) $(date +%T) : "
+SOK=" [${CL_GREEN}\u2714 ${NC}] $(date +%d-%m-%Y) $(date +%T) : "
+
+#CONFIGURATION
+############################################################################################
+cRaw_Gith=http://40.41.10.2/repo-okflash-lab/okfsoft/openlitespeed-autoinstall-almalinux-8/master
+cOls_Root=/usr/local/lsws
+cWeb_Root=/home
+
+cConf_Path=/var/okfsoft-cfg/hostname
+cConf_Host=/var/okfsoft-cfg/hostname/default.conf
+#VARIABLES
+############################################################################################
+vSucc_Dom=0
+vSucc_Ftp=0
+User_FTP="No"
+Pass_FTP="No"
+vLocal_IP=$(hostname -I | cut -d' ' -f1)
+vPublic_IP=$(hostname -I | cut -d' ' -f1)
+
+#GLOBAL FUNCTIONS
+############################################################################################
+
+# Checking the user has root access
+function GF_Access_Root() {
+  if [ "$EUID" -ne 0 ]; then
+    return 1
+  fi
+}
+
+function sed_escape() {
+  sed -e 's/[]\/$*.^[]/\\&/g'
+}
+
+# Take data in json file
+function GF_Get_JsonDT() {
+  GF_App_Ins "jq"
+  if GF_Files_Check $cConf_Path/sys-info.json; then
+    # shellcheck disable=SC2002
+    local a=$(cat $cConf_Path/sys-info.json | jq '.'"$1")
+    echo  "$a" | sed 's/"//g'
+  else
+    echo "null"
+  fi
+}
+
+function GF_Cfg_Write() { # key, value
+  GF_Cfg_Delete "$1"
+  echo "$1=$2" >>"$cConf_Host"
+}
+
+function GF_Cfg_Delete() { # key
+  test -f "$cConf_Host" && sed -i "/^$(echo "$1" | sed_escape).*$/d" "$cConf_Host"
+}
+
+# Checking directory status
+function GF_Files_Check() {
+  if ! [ -f "$1" ]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+# Checking program availability and installation
+function GF_App_Ins(){
+  if ! hash "$1" 2>/dev/null; then
+    echo -e "${SET} Get started Install $1"
+    dnf install -y "$1"
+  fi
+}
+
+# Checking directory status
+function GF_Directory_Check() {
+  if ! [ -d "$1" ]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+# Checking installed programs on the system
+function GF_Program_Check() {
+    if hash "$1" 2>/dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Checking service availability on the system
+function GF_Service_Check() {
+  # shellcheck disable=SC2126
+  # shellcheck disable=SC2009
+  if ! (($(ps -ef | grep -v grep | grep "$1" | wc -l) > 0)); then
+    return 1
+  else
+    return 0
+  fi
+}
+
+# Simpale Password Generator
+function GF_Pass_Generator() {
+  local out=$(date +%s | sha256sum | base64 | head -c "$1")
+  echo "$2"-"$out"
+}
+
+# Domain Regex
+function GF_Domain_Regex() {
+  local a=$(sed -E -e 's_.*://([^/@]*@)?([^/:]+).*_\2_; s/www.//g; s/ //g' <<< "${1,,}")
+  echo "$a" | grep -P '(?=^.{1,254}$)(^(?>(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)'
+}
+
+# Stop the process script
+# shellcheck disable=SC2120
+function GF_Exit_Process() {
+  if [ "x$1" == "x" ]; then
+    local msg="no process executed."
+  else
+    local msg="$1"
+  fi
+  clear
+  stty echo
+  echo
+  echo -e " ${CROSS} ${CL_RED}Action aborted, $msg${NC}"
+  echo
+  exit 1
+}
+
+#-------------------------------------------------------------------------------------------
+
+# Check and generate ip information on system
+function GF_Server_Info() {
+  # Checking and creating this program directory
+  if ! GF_Directory_Check $cConf_Path; then
+    mkdir -p $cConf_Path
+  fi
+  # Checking the availability of the sys-info.json settings file
+  if ! GF_Files_Check $cConf_Path/sys-info.json; then
+     # Checking internet availability on the system
+    if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
+      # Get the public ip used on the system
+      vPublic_IP=$(curl -s https://api.ipify.org)
+      # Get complete IP public information
+      curl http://ip-api.com/json/"$vPublic_IP" --output $cConf_Path/sys-info.json
+    fi
+  else
+    # Retrieve public ip on file sys-info.json
+    vPublic_IP=$(GF_Get_JsonDT query)
+  fi
+}
+
+# Initialize the system
+function Initialize() {
+  if ! GF_Access_Root; then
+    GF_Exit_Process "you must run it with root privileges."
+  fi
+  if ! GF_Service_Check "lshttpd"; then
+    GF_Exit_Process "OpenLiteSpeed is not installed on your system."
+    vSts_Initialize=1
+  fi
+  GF_Server_Info
+}
+
+# Please do not remove copyright. Thank!
+function start_ascii_okf() {
+stty echo
+clear
+echo -e "${CL_GREEN}
+ OOOOOOOOOOO   KKK   KKK  FFFFFFFF  LLL             AAAAA        SSSSSSSSSSS  HHH     HHH
+OOO       OOO  KKK  KKK   FFFFFFFF  LLL            AAA AAA       SSSSSSSSSSS  HHH     HHH
+OOO       OOO  KKK KKK    FFF       LLL           AAA   AAA      SSS          HHH     HHH
+OOO       OOO  KKKKK      FFFFFFFF  LLL          AAA     AAA     SSSSSSSSSSS  HHHHHHHHHHH${CL_RED}
+OOO       OOO  KKKKK      FFFFFFFF  LLL         AAAAAAAAAAAAA    SSSSSSSSSSS  HHHHHHHHHHH
+OOO       OOO  KKK KKK    FFF       LLL        AAAAAAAAAAAAAAA           SSS  HHH     HHH
+OOO       OOO  KKK  KKK   FFF       LLLLLLLL  AAA           AAA  SSSSSSSSSSS  HHH     HHH
+ OOOOOOOOOOO   KKK   KKK  FFF       LLLLLLLL AAA             AAA SSSSSSSSSSS  HHH     HHH${NC}"
+echo
+echo -e " ::: ================================================================================ :::${CL_GREEN}"
+echo -e " :::    Script Tool To Create OpenLiteSpeed Virtual Host - https://www.okflash.net    :::${NC}"
+echo -e " :::                                 Version : 1.0.0                                  :::"
+echo -e " :::                          Copyright (c) 2021 - OKFSoft                            :::"
+echo -e " :::                           Licensed under MIT License                             :::"
+echo -e " ::: ================================================================================ :::"
+echo -e " ::: Script Tool To Create Virtual Host                                               :::"
+echo -e " ::: ================================================================================ :::"
+echo
+echo -e " ::: ================================================================================ :::"
+echo
+}
+
+# Start
+Initialize
+start_ascii_okf
+
+# Define a domain name
+while [ $vSucc_Dom -eq "0" ]; do
+  read -e -p " ${LINE} Domain address name (Without www) : " rCheck_Domain
+  Domain=$(GF_Domain_Regex "$rCheck_Domain")
+  if [ -z "$Domain" ]; then
+        start_ascii_okf
+        echo
+        echo -e " ${CROSS}${CL_RED}Domain name does not match, please use the suffix (.com etc.) and do not use (http://, https:// and www.)${NC}"
+        echo
+  else
+    if GF_Directory_Check "$cOls_Root/conf/vhosts/$Domain"; then
+        start_ascii_okf
+        echo
+        echo -e " ${CROSS} Error, virtual host domain name is already in use, please use another domain name${NC}"
+        echo
+    else
+        start_ascii_okf
+        echo -e " ${CL_GREEN}Domain hostname selected successfully ${NC}"
+        echo
+        echo -e " ${DONE} Domain name : $Domain"
+        echo
+        read -e -p " Selection : Cancel[0], Change[1], Continue[2] : " rDomain_valid
+        if [[ "$rDomain_valid" != "0" && "$rDomain_valid" != "1" && "$rDomain_valid" != "2" ]]; then
+          GF_Exit_Process "Virtual host creation aborted, no action taken."
+        fi
+        if [ "$rDomain_valid" == "0" ]; then
+          GF_Exit_Process "Virtual host creation aborted, no action taken."
+        fi
+        if [ "$rDomain_valid" == "1" ]; then
+          start_ascii_okf
+        fi
+        if [ "$rDomain_valid" == "2" ]; then
+          cConf_Host="$cConf_Path"/vh_"$Domain".conf
+          GF_Cfg_Write CFG_DOMAIN "$Domain"
+          vSucc_Dom=1
+        else
+          vSucc_Dom=0
+        fi
+    fi
+  fi
+done
+
+# Checks ProFtpd installed on the system and determines the domain's home directory
+if GF_Service_Check "proftpd"; then
+   # service ProFtpd check found
+   GF_Cfg_Delete CFG_USER_FTP && GF_Cfg_Delete CFG_PASS_FTP
+   echo
+   read -e -p " ${LINE} Create an FTP username for the domain directory [y/N] : " rSet_Ftp
+    if [[ $rSet_Ftp =~ [yY](es)* ]]; then
+      while [ $vSucc_Ftp -eq "0" ]; do
+        read -e -p " ${LINE} Create Username FTP : " rSet_User_Ftp
+        ftpuser="${rSet_User_Ftp,,}"
+        User_FTP=${ftpuser//[^[:alnum:]]/}
+        Pass_FTP=$(GF_Pass_Generator 4 "$User_FTP")
+        if [ $(sed -n "/^$User_FTP/p" /etc/passwd) ]; then
+          start_ascii_okf
+          echo -e " ${CROSS} Error, Username $User_FTP already in use, use another username.${NC}"
+        else
+          start_ascii_okf
+          vSucc_Ftp=1
+          ServiceFTP="Yes"
+          User_dir=$cWeb_Root/$User_FTP
+        fi
+      done
+    else
+      User_dir="$cWeb_Root"/www/"$Domain"
+      ServiceFTP="No"
+    fi
+else
+  User_dir="$cWeb_Root"/www/"$Domain"
+  ServiceFTP="No"
+fi
+
+function Save_Config(){
+  if [ $vSucc_Ftp -eq "1" ]; then
+    GF_Cfg_Write CFG_FTP 1
+    GF_Cfg_Write CFG_USER_FTP "$User_FTP"
+    GF_Cfg_Write CFG_PASS_FTP "$Pass_FTP"
+    VH_Root=$User_FTP
+  else
+    GF_Cfg_Write CFG_FTP 0
+    VH_Root="www\/$Domain"
+  fi
+}
+
+# Displays information on created virtual hosts
+start_ascii_okf
+echo -e " ${CL_GREEN}Detailed information :${NC}"
+echo
+echo -e " ${DONE} Domain Used             : $Domain"
+echo -e " ${DONE} Virtual Host Root       : $User_dir/public_html/"
+echo -e " ${DONE} Creating an FTP Account : $ServiceFTP"
+echo -e " ${DONE} FTP Account Username    : $User_FTP"
+echo -e " ${DONE} FTP Account Password    : $Pass_FTP"
+echo
+read -e -p " Continue process of creating a virtual host [y/Y]: " rStart
+
+# Starting virtual host creation
+if [[ $rStart =~ [yY](es)* ]]; then
+  # Save settings on the file
+  Save_Config
+  # Starting to create a virtual host directory
+  mkdir -p "$User_dir"/{backup,public_html,logs}
+  mkdir -p "$cOls_Root"/conf/vhosts/"$Domain"
+  mkdir -p "$cOls_Root"/conf/cert/"$Domain"
+  # Retrieve the default virtual host template
+  cd "$User_dir"/public_html/ || exit
+  if GF_Files_Check /root/scripts/template/www-vh-template.tar.gz; then
+     cp /root/scripts/template/www-vh-template.tar.gz "$User_dir"/public_html/tmp.tar.gz
+  else
+     wget -O "$User_dir"/public_html/tmp.tar.gz "$cRaw_Gith"/templates/www-vh-template.tar.gz
+  fi
+  tar -xzf tmp.tar.gz && rm -f tmp.tar.gz
+  sed -i "s/##DOMAIN##/$Domain/g" "$User_dir"/public_html/index.html
+  # Configuration variables
+  vHInc="$cOls_Root/conf/templates/$Domain.conf"
+  VHCon="$cOls_Root/conf/vhosts/$Domain/vhconf.conf"
+  hTCon="$cOls_Root/conf/httpd_config.conf"
+  vhKey="$cOls_Root/conf/cert/$Domain/$Domain.key"
+  vhCsr="$cOls_Root/conf/cert/$Domain/$Domain.csr"
+  vhCrt="$cOls_Root/conf/cert/$Domain/$Domain.crt"
+  vhSub="/CN=$Domain/DC=$vLocal_IP/C=$(GF_Get_JsonDT countryCode)/ST=$(GF_Get_JsonDT country)/L=$(GF_Get_JsonDT regionName)/O=$Domain/OU=$Domain/emailAddress=mail@$Domain"
+  # Copying and setting up httpd_conf and vhcon
+  cp "$cOls_Root/conf/templates/httpd_inc.conf" "$vHInc"
+  cp "$cOls_Root/conf/templates/vhcon_inc.conf" "$VHCon"
+  sed -i "s/##DOMAIN##/$Domain/g" "$vHInc"
+  sed -i "s/##VHROOT##/$VH_Root/g" "$vHInc"
+  sed -i "s/##DOMAIN##/$Domain/g" "$VHCon"
+  sed -i "s/##VHROOT##/$VH_Root/g" "$VHCon"
+  sed -i "/:80$/a                \  map                     $Domain $Domain" "$hTCon"
+  sed -i "/:443$/a                \  map                     $Domain $Domain" "$hTCon"
+  sed -i "s/virtualhost[[:space:]]HOST-NAME[[:space:]]{/cat \/usr\/local\/lsws\/conf\/templates\/$Domain.conf/e" "$hTCon"
+  # Creating Open SSL on a virtual host
+  openssl genrsa -out "$vhKey" 2048
+  openssl rsa -in "$vhKey" -out "$vhKey"
+  openssl req -sha256 -new -key "$vhKey" -out "$vhCsr" -subj "$vhSub" -config /etc/pki/tls/openssl.cnf -extensions v3_req
+  openssl x509 -req -sha256 -days 365 -in "$vhCsr" -signkey "$vhKey" -out "$vhCrt" -extfile /etc/pki/tls/openssl.cnf -extensions v3_req
+  # create ftp permissions on the virtual host home directory, if you create one
+  if [ $vSucc_Ftp -eq "1" ]; then
+    useradd "$User_FTP" -d "$User_dir/" -p $(echo "$Pass_FTP" | openssl passwd -1 -stdin) -M
+    chown -R "$User_FTP":"$User_FTP" "$User_dir"/public_html
+    systemctl restart proftpd
+  fi
+  # Create a file in the virtual host home directory
+  touch "$User_dir"/public_html/.htaccess
+  touch "$User_dir"/logs/{error.log,access.log}
+  # Fix Files
+  chown -R lsadm:nobody "$User_dir/logs" && chmod 750 "$User_dir/logs"
+  chown -R lsadm:nobody "$cOls_Root/conf/cert/$Domain" && chmod 750 "$cOls_Root/conf/cert/$Domain"
+  chown -R lsadm:nobody "$cOls_Root/conf/vhosts/$Domain" && chmod 750 "$cOls_Root/conf/vhosts/$Domain"
+  rm -f "$vHInc"
+  rm -f "$vhCsr"
+  # Save settings on the file
+  GF_Cfg_Write CFG_WEB_DIR "$User_dir"
+  GF_Cfg_Write CFG_VHOSTS_DIR "$cOls_Root"/conf/vhosts/"$Domain"
+  GF_Cfg_Write CFG_CERT_DIR "$cOls_Root"/conf/cert/"$Domain"
+  # Restarting OpenLiteSpeed
+  systemctl restart lshttpd
+  # Displaying result information from creation
+  start_ascii_okf
+  echo
+	echo -e "${LIGHT_GREEN} ::: ================================================================================ :::${NC}"
+  echo -e " ${TICK} ${LIGHT_GREEN}The creation of the virtual host domain and FTP user has been successful,${NC}"
+  echo -e " ${LIGHT_GREEN}     below are the details of the virtual host domain: $Domain.${NC}"
+	echo -e "${LIGHT_GREEN} ::: -------------------------------------------------------------------------------- :::${NC}"
+	echo -e " ${DONE} Details :"
+	echo -e "     ${CHECK} Domain host address            : $Domain"
+	echo -e "     ${CHECK} Web Host Directory             : $User_dir/"
+	echo -e "     ${CHECK} FTP Access Service             : $ServiceFTP"
+	echo -e "     ${CHECK} FTP username                   : $User_FTP"
+	echo -e "     ${CHECK} FTP password                   : $Pass_FTP"
+	echo -e "${LIGHT_GREEN} ::: ================================================================================ :::${NC}"
+	echo
+
+# Save the virtual host creation result on the domain
+mkdir -p /root/scripts/v-host/
+cat << EOT > /root/scripts/v-host/detail-vhost-"$Domain".txt
+================================================================================
+Virtual Host Detailed information :
+Domain Used             : $Domain
+Virtual Host Root       : $User_dir/public_html/
+Creating an FTP Account : $ServiceFTP
+FTP Account Username    : $User_FTP
+FTP Account Password    : $Pass_FTP
+================================================================================
+EOT
+else
+  GF_Exit_Process "Virtual host creation aborted, no action taken."
+fi
