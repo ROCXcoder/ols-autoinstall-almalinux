@@ -102,12 +102,14 @@ function GF_Access_Root() {
 # Take data in json file
 function GF_Get_JsonDT() {
   #Checking the user has root access
-  if GF_Files_Check $cConf_Path/sys-info.json; then
+  if GF_Files_Check /var/okfsoft-cfg/sys-info.json; then
+    local a
+    local b
     # shellcheck disable=SC2002
-    # shellcheck disable=SC2155
-    local a=$(cat $cConf_Path/sys-info.json | jq '.'"$1")
+    a=$(cat /var/okfsoft-cfg/sys-info.json | jq '.'"$1")
     # shellcheck disable=SC2001
-    echo  "$a" | sed 's/"//g'
+    b=$(echo "$a" | sed 's/"//g')
+    [[ -z "$b" ]] && echo "null" || echo "$b"
   else
     echo "null"
   fi
@@ -848,7 +850,7 @@ if [ $vStatus_OLS -eq "1" ]; then
 
 	# SSL configuration variables
 	echo -e "${SET} Config SSL Certificates"
-	Subject_SSL="/CN=$vHost_Name/DC=$vLocal_IP/C=$(GF_Get_JsonDT countryCode)/ST=$(GF_Get_JsonDT country)/L=$(GF_Get_JsonDT regionName)/O=OKFLash Network Indodata/OU=OKFLash Cloud/emailAddress=mail@$vHost_Name"
+	Subject_SSL="/CN=$vHost_Name/DC=$vLocal_IP/C=$(GF_Get_JsonDT countryCode)/ST=$(GF_Get_JsonDT country)/L=$(GF_Get_JsonDT regionName)/O=$vHost_Name Cloud/OU=$vHost_Name Cloud/emailAddress=mail@$vHost_Name"
 	Admin_SSL=$cOls_Root/admin/conf
 	Default_SSL=$cOls_Root/conf/cert/www-ssl/www-ssl
   Host_SSL=$cOls_Root/conf/cert/$vHost_Name/$vHost_Name
