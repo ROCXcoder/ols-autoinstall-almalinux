@@ -258,11 +258,10 @@ function Selinux_Status() {
   if [[ -f /etc/selinux/config ]] && command -v getenforce &> /dev/null; then
   config_selinux=$(awk -F= '/^SELINUX=/ {print $2}' /etc/selinux/config)
   current_selinux=$(getenforce)
-  if [ "x${current_selinux,,}" == "xenable" ]; then
+  if [ "x${current_selinux,,}" == "xenforcing" ]; then
 		echo -e " ${CROSS} ${CL_RED}SELinux status on your system is ( ${current_selinux,,} ), the process cannot be continued,${NC}"
 		echo -e " ${CROSS} ${CL_RED}Script doesn't support SELinux in enabled state, Please disable SELinux on the system to continue the installation.${NC}"
 		echo
-		# shellcheck disable=SC2162
 		read -e -p " ${LINE} Set SELinux to Disable [y/N] : " rDisableSelinux
 		if [[ $rDisableSelinux =~ [yY](es)* ]]; then
 			sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
