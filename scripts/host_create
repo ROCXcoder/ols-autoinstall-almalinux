@@ -93,10 +93,15 @@ function sed_escape() {
 # Take data in json file
 function GF_Get_JsonDT() {
   GF_App_Ins "jq"
-  if GF_Files_Check $cConf_Path/sys-info.json; then
+  #Checking the user has root access
+  if GF_Files_Check /var/okfsoft-cfg/sys-info.json; then
+    local a
+    local b
     # shellcheck disable=SC2002
-    local a=$(cat $cConf_Path/sys-info.json | jq '.'"$1")
-    echo  "$a" | sed 's/"//g'
+    a=$(cat /var/okfsoft-cfg/sys-info.json | jq '.'"$1")
+    # shellcheck disable=SC2001
+    b=$(echo "$a" | sed 's/"//g')
+    [[ -z "$b" ]] && echo "null" || echo "$b"
   else
     echo "null"
   fi
