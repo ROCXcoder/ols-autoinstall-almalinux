@@ -105,7 +105,9 @@ function GF_Get_JsonDT() {
   #Checking the user has root access
   if GF_Files_Check $cConf_Path/sys-info.json; then
     # shellcheck disable=SC2002
+    # shellcheck disable=SC2155
     local a=$(cat $cConf_Path/sys-info.json | jq '.'"$1")
+    # shellcheck disable=SC2001
     echo  "$a" | sed 's/"//g'
   else
     echo "null"
@@ -143,6 +145,7 @@ function GF_Service_Check() {
 
 # Checking RPM packages on the system
 function GF_Rpm_Chek() {
+  # shellcheck disable=SC2046
   if [ $(rpm -qa|grep -c "$1") -gt 0 ]; then
     return 0
   else
@@ -170,13 +173,16 @@ function GF_Program_Check() {
 # Generate Advanced Password
 function GF_Pass_Random(){
     dd if=/dev/urandom bs=8 count=1 of=$cConf_Path/gen_password >/dev/null 2>&1
+    # shellcheck disable=SC2155
     local RESULTS=$(cat $cConf_Path/gen_password) && rm -f $cConf_Path/gen_password
+    # shellcheck disable=SC2155
     local DATE=$(date)
     echo "$RESULTS$DATE" |  md5sum | base64 | head -c 32
 }
 
 # Generate Simple Password
 function GF_Pass_Generator() {
+  # shellcheck disable=SC2155
   local out=$(date +%s | sha256sum | base64 | head -c "$1")
   echo "$2"-"$out"
 }
@@ -229,6 +235,7 @@ GF_Server_Info
 
 # Checking the operating system type
 function OS_Check(){
+# shellcheck disable=SC2002
 if [ "$(cat /etc/redhat-release | grep -i $vOnlyOS)x" != "x" ]; then
 	DistroNam=$(cat /etc/redhat-release | cut -d ' ' -f1)
 	DistroVer=$(cat /etc/redhat-release | awk '{print substr($3,1,1)}')
@@ -255,6 +262,7 @@ function Selinux_Status() {
 		echo -e " ${CROSS} ${CL_RED}SELinux status on your system is ( ${current_selinux,,} ), the process cannot be continued,${NC}"
 		echo -e " ${CROSS} ${CL_RED}Script doesn't support SELinux in enabled state, Please disable SELinux on the system to continue the installation.${NC}"
 		echo
+		# shellcheck disable=SC2162
 		read -e -p " ${LINE} Set SELinux to Disable [y/N] : " rDisableSelinux
 		if [[ $rDisableSelinux =~ [yY](es)* ]]; then
 			sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
@@ -367,6 +375,7 @@ function OLS_Config() {
       stty -echo
       read -e -p "      ${LINE} Set OpenLiteSpeed Admin Password, press enter to use default [admin123] : " rPass_OLS
       if ! [ "x${rPass_OLS,,}" == "x" ]; then
+        # shellcheck disable=SC2046
         if [ $(expr "$rPass_OLS" : '.*') -ge 6 ]; then
           echo
           stty -echo
@@ -431,6 +440,7 @@ function MriaDB_Config() {
     if ! [ "x$rPass_DB" = "x" ]; then
     stty echo
     echo
+      # shellcheck disable=SC2046
       if [ $(expr "$rPass_DB" : '.*') -ge 6 ]; then
         stty -echo
         read -e -p "      ${LINE} Retype root password database : " rPassDB_Retype
@@ -659,6 +669,7 @@ function Prepare_System() {
   GF_App_Ins "openssl"
   GF_App_Ins "zip"
   GF_App_Ins "tar"
+  # shellcheck disable=SC2002
   echo -e "${SET} Get started update System ${DistroNam} $(cat /etc/redhat-release | cut -d ' ' -f3)"
   # Clean and update the system
   dnf clean all
@@ -893,8 +904,10 @@ if [ $vStatus_OLS -eq "1" ]; then
 	# Checking the installed version of OpenLiteSpeed
   if GF_Service_Check "lshttpd"; then
     echo -e "${SET} Checking OpenLiteSpeed version"
-		# shellcheck disable=SC2005
-		# shellcheck disable=SC2006
+    # shellcheck disable=SC2046
+    # shellcheck disable=SC2005
+    # shellcheck disable=SC2006
+    # shellcheck disable=SC2006
     cVers_OLS=$(echo `/usr/local/lsws/bin/lshttpd -v` | grep -oP '(?<=LiteSpeed/)[a-zA-Z0-9\.-]*(?=\ Open)')
   fi
   info_ins_ols=" ${CHECK} Installation OpenLiteSpeed Successfully"
