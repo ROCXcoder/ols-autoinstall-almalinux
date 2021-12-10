@@ -926,7 +926,6 @@ fi
 if [ $vStatus_DB -eq "1" ]; then
 	systemctl start mariadb
 	mysql -uroot -v -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-	mysql -uroot -v -e "DROP DATABASE test;"
 	mysql -uroot -v -e "use mysql;update user set Password=PASSWORD('$cPass_DB') where user='$cUser_DB'; flush privileges;"
 	if [[ $(firewall-cmd --list-services) != *"mysql"* ]]; then
 	  sudo firewall-cmd --zone=public --permanent --add-service=mysql
