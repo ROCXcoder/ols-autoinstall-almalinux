@@ -925,10 +925,17 @@ fi
 # Starting the mariaDB database setup if installing it
 if [ $vStatus_DB -eq "1" ]; then
 	systemctl start mariadb
-	#mysql -uroot -v -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-	mysql -uroot -v -e "DROP DATABASE test;"
-	#mysql -uroot -v -e "DELETE FROM mysql.user WHERE User='';"
-	mysql -uroot -v -e "use mysql;update user set Password=PASSWORD('$cPass_DB') where user='$cUser_DB'; flush privileges;"
+    if [ "$rSet_vMariaDB" -ge 1 ] && [ "$rSet_vMariaDB" -le 3 ]; then
+      mysql -uroot -v -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+      mysql -uroot -v -e "DROP DATABASE test;"
+      mysql -uroot -v -e "DELETE FROM mysql.user WHERE User='';"
+      mysql -uroot -v -e "use mysql;update user set Password=PASSWORD('$cPass_DB') where user='$cUser_DB'; flush privileges;"
+    fi
+    if [ "$rSet_vMariaDB" -ge 4 ] && [ "$rSet_vMariaDB" -le 7 ]; then
+      mysql -uroot -v -e "use mysql;DELETE FROM mysql.db WHERE User='' AND Host='%';"
+      mysql -uroot -v -e "DROP DATABASE test;"
+      mysql -uroot -v -e "use mysql;SET PASSWORD FOR '$cUser_DB'@'localhost' = PASSWORD('$cPass_DB'); flush privileges;"
+    fi
 	if [[ $(firewall-cmd --list-services) != *"mysql"* ]]; then
 	  sudo firewall-cmd --zone=public --permanent --add-service=mysql
 	fi
