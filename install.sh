@@ -198,11 +198,11 @@ function GF_Server_Info() {
     if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
       # Get the public ip used on the system
       vPublic_IP=$(curl -s https://api.ipify.org)
-	  # Get complete IP public information
+	    # Get complete IP public information
       curl http://ip-api.com/json/"$vPublic_IP" --output $cConf_Path/sys-info.json
-	  # Retrieve public ip on file sys-info.json
+	    # Retrieve public ip on file sys-info.json
       vPublic_IP=$(GF_Get_JsonDT query)
-	  # Retrieving Timezone on file sys-info.json
+	    # Retrieving Timezone on file sys-info.json
       vPhpTime_Zone="date.timezone = $(GF_Get_JsonDT timezone)"
     fi
   else
@@ -235,6 +235,7 @@ GF_App_Ins "tar"
 GF_App_Ins "jq"
 GF_App_Ins "firewalld"
 GF_App_Ins "openssl"
+GF_App_Ins "sed"
 
 # Checking the availability of the sys-info.json file
 GF_Server_Info
