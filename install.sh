@@ -101,7 +101,6 @@ function GF_Access_Root() {
 
 # Take data in json file
 function GF_Get_JsonDT() {
-  GF_App_Ins "jq"
   #Checking the user has root access
   if GF_Files_Check $cConf_Path/sys-info.json; then
     # shellcheck disable=SC2002
@@ -229,6 +228,13 @@ function GF_Exit_Process() {
 }
 
 #-------------------------------------------------------------------------------------------
+# Checks the required programs and installs them
+GF_App_Ins "wget"
+GF_App_Ins "zip"
+GF_App_Ins "tar"
+GF_App_Ins "jq"
+GF_App_Ins "firewalld"
+GF_App_Ins "openssl"
 
 # Checking the availability of the sys-info.json file
 GF_Server_Info
@@ -652,9 +658,9 @@ function Prepare_System() {
   # Adding MariaDB Repository
   if [[ $rInstall_MariDB =~ [yY](es)* ]]; then
     echo -e "${SET} Add repository MariaDB $cVer_MariaDB"
-	wget -O /etc/yum.repos.d/mariadb.repo $cRaw_Gith/repository/MariaDB.repo
-	sed -i "s/##VERMARIADB##/$cVer_MariaDB/g" /etc/yum.repos.d/mariadb.repo
-	rpm --import https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+    wget -O /etc/yum.repos.d/mariadb.repo $cRaw_Gith/repository/MariaDB.repo
+    sed -i "s/##VERMARIADB##/$cVer_MariaDB/g" /etc/yum.repos.d/mariadb.repo
+    rpm --import https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
   fi
 
   # Check availability of Packages and install them
@@ -663,11 +669,6 @@ function Prepare_System() {
     dnf -y install epel-release
   fi
 
-  # Checks the required programs and installs them
-  GF_App_Ins "firewalld"
-  GF_App_Ins "openssl"
-  GF_App_Ins "zip"
-  GF_App_Ins "tar"
   # shellcheck disable=SC2002
   echo -e "${SET} Get started update System ${DistroNam} $(cat /etc/redhat-release | cut -d ' ' -f3)"
   # Clean and update the system
