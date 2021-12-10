@@ -643,6 +643,7 @@ function Prepare_System() {
   if [[ $rInstall_OLS =~ [yY](es)* ]]; then
 	# Checked the OpenLiteSpeed repository and installed it
     if GF_Rpm_Chek "litespeed"; then
+      # Removed litespeedtech repository if found and added
       echo -e "${SET} Removed the litespeedtech repo and dependencies"
       dnf -y remove 'litespeed*'
       dnf autoremove
