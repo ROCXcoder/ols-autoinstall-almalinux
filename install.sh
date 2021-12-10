@@ -647,6 +647,10 @@ function Prepare_System() {
       dnf -y remove 'litespeed*'
       dnf autoremove
       rm -f /etc/yum.repos.d/{litespeed.repo.bak,litespeed.repo.rpmsave}
+      # Fix Error Invalid failovermethod OpenLiteSpeed in AlmaLinux 5.8
+      rpm -Uvh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el8.noarch.rpm
+      sudo sed -i".bak" '/^failovermethod=/d' /etc/yum.repos.d/litespeed.repo
+      sudo sed -i '/^failovermethod=/d' /etc/yum.repos.d/litespeed.repo
     else
       echo -e "${SET} Add repository OpenLiteSpeed"
       # Fix Error Invalid failovermethod OpenLiteSpeed in AlmaLinux 5.8
@@ -897,7 +901,7 @@ if [ $vStatus_OLS -eq "1" ]; then
   if [[ $(firewall-cmd --list-ports) != *"821/tcp"* ]]; then
     sudo firewall-cmd --zone=public --permanent --add-port=821/tcp
   fi
-  # Restarting OpenLiteSpeed
+  # Restarting OpenLiteSpeopenlitespeeded
   systemctl restart lshttpd
   sudo killall -9 lsphp
   # Update openlitespeed if the latest version is found, because all installations and configurations start with openlitespeed version 1.7.14
