@@ -164,13 +164,15 @@ function GF_Service_Check() {
 
 # Simpale Password Generator
 function GF_Pass_Generator() {
-  local out=$(date +%s | sha256sum | base64 | head -c "$1")
-  echo "$2"-"$out"
+  local a
+  a=$(date +%s | sha256sum | base64 | head -c "$1")
+  echo "$2"-"$a"
 }
 
 # Domain Regex
 function GF_Domain_Regex() {
-  local a=$(sed -E -e 's_.*://([^/@]*@)?([^/:]+).*_\2_; s/www.//g; s/ //g' <<< "${1,,}")
+  local a
+  a=$(sed -E -e 's_.*://([^/@]*@)?([^/:]+).*_\2_; s/www.//g; s/ //g' <<< "${1,,}")
   echo "$a" | grep -P '(?=^.{1,254}$)(^(?>(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)'
 }
 
