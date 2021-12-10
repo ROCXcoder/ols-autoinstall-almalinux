@@ -70,7 +70,7 @@ cRaw_Gith=https://raw.githubusercontent.com/rocxcoder/ols-autoinstall-almalinux/
 cConf_Path=/var/okfsoft-cfg
 cOls_Root=/usr/local/lsws
 cWeb_Root=/home
-cVers_OLS="1.6.21"
+cVers_OLS="1.6.14"
 cVPMA="5.1.1"
 cHost_DB="localhost"
 cPort_DB="3306"
@@ -608,7 +608,7 @@ if [[ $rApproval =~ [yY](es)* ]]; then
   if [[ $rInstall_ProFtpd =~ [yY](es)* ]]; then
     echo -e " [info] ${BG_GREEEN} ProFtpd Configuration ${NC}"
     echo -e " ${DONE} ProFtpd Host               : $vLocal_IP"
-    echo -e " ${DONE} ProFtpd Port               : 22"
+    echo -e " ${DONE} ProFtpd Port               : 21"
   fi
   echo
   # Displaying phpMyAdmin installation information
