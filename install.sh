@@ -2,7 +2,7 @@
 mkdir -p /root/scripts/logs/
 stty echo
 {
-set -e
+#set -e
 # bash <( curl -k https://raw.githubusercontent.com/rocxcoder/ols-autoinstall-almalinux/root/install.sh )
 #############################################################################################
 #                  OpenLiteSpeed Web Server Auto Installer for AlmaLinux 8                  #
