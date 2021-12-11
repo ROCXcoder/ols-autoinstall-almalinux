@@ -21,6 +21,8 @@ Or use
 
     curl -sO https://raw.githubusercontent.com/rocxcoder/ols-autoinstall-almalinux/root/install.sh && chmod +x install.sh && ./install.sh
 
+<br>
+
 ## 2. Programs to be installed
 After you run the script, the script will propose several options for the installation of the program you can choose to install or not according to your needs.
 
@@ -46,20 +48,27 @@ You are in the root directory, copy and paste the script in the command line. To
 
     /scripts/host_delete
 
+<br>
+
 ## Suggestions
 
 - Lack of Experience and Capabilities, Script definitely has a lot of flaws. We look forward to receiving your comments to make the script more perfect.
 
 - Suggestions and feedback can be made via the [Github issue tracker](https://github.com/rocxcoder/ols-autoinstall-almalinux/issues).
 
+<br>
+
 ## Contributors
 I am grateful that this project exists thanks to all the best people who contributed.
 
 - WofiNR
 
+<br>
+
 ## License
 
-Copyright © 2021 [rocxcoder](https://github.com/rocxcoder).</br>
+Copyright © 2021 [rocxcoder](https://github.com/rocxcoder).
+<br>
 This project is licensed under the terms of the [MIT](https://github.com/rocxcoder/ols-autoinstall-almalinux/blob/root/LICENSE) licensed.
 
 ---
