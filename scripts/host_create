@@ -525,6 +525,7 @@ cat << EOT > /root/scripts/v-host/detail-vhost-"$Domain".txt
 ================================================================================
 Virtual Host Detailed information :
 Domain Used             : $Domain
+SSL Status              : $SSL_Status
 Virtual Host Root       : $User_dir/public_html/
 Creating an FTP Account : $ServiceFTP
 FTP Account Username    : $User_FTP
