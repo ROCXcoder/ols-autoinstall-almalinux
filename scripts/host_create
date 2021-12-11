@@ -496,6 +496,8 @@ if [[ $rStart =~ [yY](es)* ]]; then
       sed -i "s/$Domain.crt/fullchain.pem/g" "$cOls_Root"/conf/vhosts/"$Domain"/vhconf.conf
       sed -i "/fullchain.pem/a \  certChain               1" /usr/local/lsws/conf/vhosts/"$Domain"/vhconf.conf
       GF_Cfg_Write CFG_LES_CERT_DIR /etc/letsencrypt/live/"$Domain"
+      # Restarting OpenLiteSpeed
+      systemctl restart lshttpd
     fi
   else
     SSL_Status="Successfully Create OpenSSL Certificate"
