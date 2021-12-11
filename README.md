@@ -13,6 +13,7 @@ Build a web server quickly. this is a script library for performing simple and c
 </div>
 
 ##1. Installation Usage
+
 You can start the installation by copying the code below and pasting it in the command line or you can use SSH with root user rights. The process will display a few questions to start installing the required packages.
 
     bash <( curl -k https://raw.githubusercontent.com/rocxcoder/ols-autoinstall-almalinux/root/install.sh )
