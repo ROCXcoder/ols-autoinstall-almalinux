@@ -42,11 +42,11 @@ Script will create a simple function on ( /root/scripts/ ) a simple script is us
 ### Usage
 You are in the root directory, copy and paste the script in the command line. To create a new virtual host.
 
-    /scripts/host_create
+    scripts/host_create
 
 You are in the root directory, copy and paste the script in the command line. To delete virtual hosts.
 
-    /scripts/host_delete
+    scripts/host_delete
 
 <br>
 
