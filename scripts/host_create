@@ -75,6 +75,7 @@ User_FTP="No"
 Pass_FTP="No"
 vLocal_IP=$(hostname -I | cut -d' ' -f1)
 vPublic_IP=$(hostname -I | cut -d' ' -f1)
+vLocal_ipdns="null"
 
 #GLOBAL FUNCTIONS
 ############################################################################################
@@ -193,7 +194,10 @@ function GF_Exit_Process() {
 }
 
 #-------------------------------------------------------------------------------------------
-
+if ! [ -x "$(command -v dig)" ]; then
+  dnf install -y bind-utils
+fi
+vLocal_ipdns=$(dig +short initialize.local | grep -v "\.$" | head -n 1)
 # Check and generate ip information on system
 function GF_Server_Info() {
   # Checking and creating this program directory
@@ -255,7 +259,52 @@ echo
 }
 
 # Start
-Initialize
+#Initialize
+start_ascii_okf
+
+
+function get_host_dns_domain() {
+  DomIP=$(dig +short "$1" | grep -v "\.$" | head -n 1)
+  if [ "$vLocal_ipdns" == "$DomIP" ]; then
+    return 0
+  else
+    if ping -q -c 1 -W 1 "$DomIP" >/dev/null; then
+      return 1
+    else
+      return 0
+    fi
+  fi
+}
+
+
+
+function SET_SSL() {
+  # Create ssl domain
+  echo -e " Choose the type of ssl for the domain"
+  echo
+  echo -e " 1. Let's Encrypt ( Requires domain FQDN )"
+  echo -e " 2. OpenSSL"
+  echo
+  # Selecting the type of ssl to use
+  while :; do
+    read -e -p " ${LINE} Type the SSL type number in the list above that will be used, [ example : 1] : " rSet_SSL
+    [[ $rSet_SSL =~ ^[0-9]+$ ]] || { echo -e " ${CROSS} ${CL_RED}Enter valid number option${NC}"; continue; }
+    # shellcheck disable=SC2004
+    if [ "$rSet_SSL" -ge 1 ] && [ "$rSet_SSL" -le 2 ]; then
+      if [ "x$rSet_SSL" == "x1" ]; then
+        cSSL_Type="Let's Encrypt"
+      fi
+      if [ "x$rSet_SSL" == "x2" ]; then
+        cSSL_Type="OpenSSL"
+      fi
+      break
+    else
+      echo -e " ${CROSS} ${CL_RED}Number option you entered is invalid, please try again.${NC}"
+    fi
+  done
+}
+
+
 start_ascii_okf
 
 # Define a domain name
@@ -275,9 +324,25 @@ while [ $vSucc_Dom -eq "0" ]; do
         echo
     else
         start_ascii_okf
-        echo -e " ${CL_GREEN}Domain hostname selected successfully ${NC}"
+        SET_SSL
+        if [ "$rSet_SSL" == "1" ]; then
+          if get_host_dns_domain "$rCheck_Domain"; then
+            start_ascii_okf
+            echo -e " ${CROSS}ERROR!! You choose to install SSL $cSSL_Type, but the script can't get a valid ip from the $rCheck_Domain.${NC}"
+            echo
+            echo -e " ${CROSS} Domain name : $Domain"
+            echo -e " ${CROSS} Domain IP   : $DomIP"
+            echo -e " ${CROSS} SSL Used    : $cSSL_Type"
+            echo
+            exit 1
+          fi
+        fi
+        echo
+        echo -e " ${CL_GREEN}Domain name selected successfully ${NC}"
         echo
         echo -e " ${DONE} Domain name : $Domain"
+        if [ "$rSet_SSL" == "1" ]; then  echo -e " ${DONE} Domain IP   : $DomIP"; else  echo -e " ${DONE} Domain IP   : Not inspected"; fi
+        echo -e " ${DONE} SSL Used    : $cSSL_Type"
         echo
         read -e -p " Selection : Cancel[0], Change[1], Continue[2] : " rDomain_valid
         if [[ "$rDomain_valid" != "0" && "$rDomain_valid" != "1" && "$rDomain_valid" != "2" ]]; then
@@ -334,6 +399,7 @@ fi
 function Save_Config(){
   if [ $vSucc_Ftp -eq "1" ]; then
     GF_Cfg_Write CFG_FTP 1
+    GF_Cfg_Write CFG_LES_CERT "$rSet_SSL"
     GF_Cfg_Write CFG_USER_FTP "$User_FTP"
     GF_Cfg_Write CFG_PASS_FTP "$Pass_FTP"
     VH_Root=$User_FTP
@@ -416,6 +482,24 @@ if [[ $rStart =~ [yY](es)* ]]; then
   GF_Cfg_Write CFG_CERT_DIR "$cOls_Root"/conf/cert/"$Domain"
   # Restarting OpenLiteSpeed
   systemctl restart lshttpd
+  # Creating Let's Encrypt'on a virtual host
+  if [ "$rSet_SSL" == "1" ]; then
+    certbot certonly --non-interactive --agree-tos -m webmaster@"$Domain" --webroot -w "$User_dir/public_html" -d "$Domain"
+    if [ ! -f /etc/letsencrypt/live/"$Domain"/cert.pem ]; then
+      SSL_Status="Failed to Create Let's Encrypt, default using OpenSSL"
+    else
+      SSL_Status="Successfully Create SSL Let's Encrypt"
+      # Creating symlink Certificate File
+      ln -s /etc/letsencrypt/live/"$Domain"/privkey.pem "$cOls_Root"/conf/cert/"$Domain"/privkey.pem
+      ln -s /etc/letsencrypt/live/"$Domain"/fullchain.pem "$cOls_Root"/conf/cert/"$Domain"/fullchain.pem
+      sed -i "s/$Domain.key/privkey.pem/g" "$cOls_Root"/conf/vhosts/"$Domain"/vhconf.conf
+      sed -i "s/$Domain.crt/fullchain.pem/g" "$cOls_Root"/conf/vhosts/"$Domain"/vhconf.conf
+      sed -i "/fullchain.pem/a \  certChain               1" /usr/local/lsws/conf/vhosts/"$Domain"/vhconf.conf
+      GF_Cfg_Write CFG_LES_CERT_DIR /etc/letsencrypt/live/"$Domain"
+    fi
+  else
+    SSL_Status="Successfully Create OpenSSL Certificate"
+  fi
   # Displaying result information from creation
   start_ascii_okf
   echo
@@ -425,6 +509,7 @@ if [[ $rStart =~ [yY](es)* ]]; then
 	echo -e "${LIGHT_GREEN} ::: -------------------------------------------------------------------------------- :::${NC}"
 	echo -e " ${DONE} Details :"
 	echo -e "     ${CHECK} Domain host address            : $Domain"
+	echo -e "     ${CHECK} SSL Status                     : $SSL_Status"
 	echo -e "     ${CHECK} Web Host Directory             : $User_dir/"
 	echo -e "     ${CHECK} FTP Access Service             : $ServiceFTP"
 	echo -e "     ${CHECK} FTP username                   : $User_FTP"
